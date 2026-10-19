@@ -31,4 +31,89 @@ function orderOnWhatsApp(product){if(!/^\d{10,15}$/.test(WHATSAPP_NUMBER)){alert
 document.querySelectorAll('.order').forEach(btn=>btn.addEventListener('click',()=>orderOnWhatsApp(btn.dataset.product)));
 document.getElementById('contactBtn').addEventListener('click',e=>{e.preventDefault();orderOnWhatsApp('a custom T-shirt');});document.getElementById('year').textContent=new Date().getFullYear();
 </script>
+  
+<!-- Custom Street Admin Panel -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const SUPABASE_URL = "https://btjtfgpjqbfeyjbylpuu.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_OlQapRxXhAiJiL2mVofeNw_6vBg52xI";
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const panel = document.createElement("div");
+  panel.innerHTML = `
+    <button id="cs-admin-open" style="position:fixed;right:12px;bottom:12px;z-index:99999;background:#111;color:white;padding:12px 18px;border-radius:8px">
+      Admin Login
+    </button>
+    <div id="cs-admin-box" style="display:none;position:fixed;inset:5%;z-index:100000;background:white;color:#111;padding:20px;overflow:auto;border:2px solid #111;border-radius:12px">
+      <button id="cs-admin-close">Close ✕</button>
+      <h2>Custom Street Admin</h2>
+      <div id="cs-login">
+        <h3>Admin Login</h3>
+        <input id="cs-email" type="email" placeholder="Admin email" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <input id="cs-password" type="password" placeholder="Password" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <button id="cs-login-btn">Login</button>
+      </div>
+      <div id="cs-products" style="display:none">
+        <h3>Add Product</h3>
+        <input id="cs-name" placeholder="Product name" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <input id="cs-price" type="number" placeholder="Price in ₹" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <input id="cs-image" type="url" placeholder="Public image URL" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <textarea id="cs-description" placeholder="Description" style="display:block;padding:10px;margin:8px 0;width:95%"></textarea>
+        <input id="cs-sizes" placeholder="Sizes e.g. M, L, XL" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <input id="cs-colors" placeholder="Colors e.g. Black, White" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <input id="cs-stock" type="number" placeholder="Stock quantity" style="display:block;padding:10px;margin:8px 0;width:95%">
+        <button id="cs-save">Save Product</button>
+        <button id="cs-logout">Logout</button>
+        <p id="cs-status"></p>
+      </div>
+    </div>`;
+  document.body.appendChild(panel);
+
+  const el = id => document.getElementById(id);
+  el("cs-admin-open").onclick = () => el("cs-admin-box").style.display = "block";
+  el("cs-admin-close").onclick = () => el("cs-admin-box").style.display = "none";
+
+  async function refreshLogin() {
+    const { data } = await db.auth.getSession();
+    const loggedIn = !!data.session;
+    el("cs-login").style.display = loggedIn ? "none" : "block";
+    el("cs-products").style.display = loggedIn ? "block" : "none";
+  }
+  el("cs-login-btn").onclick = async () => {
+    const { error } = await db.auth.signInWithPassword({
+      email: el("cs-email").value.trim(),
+      password: el("cs-password").value
+    });
+    el("cs-status").textContent = error ? error.message : "Logged in";
+    await refreshLogin();
+  };
+  el("cs-save").onclick = async () => {
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return;
+    const product = {
+      Name: el("cs-name").value.trim(),
+      price: Number(el("cs-price").value),
+      image_url: el("cs-image").value.trim(),
+      description: el("cs-description").value.trim(),
+      sizes: el("cs-sizes").value.trim(),
+      colors: el("cs-colors").value.trim(),
+      stock: Number(el("cs-stock").value),
+      user_id: user.id
+    };
+    if (!product.Name || !product.price || !product.image_url) {
+      el("cs-status").textContent = "Enter product name, price and image URL.";
+      return;
+    }
+    const { error } = await db.from("CustomStreet").insert(product);
+    el("cs-status").textContent = error ? error.message : "Product saved!";
+  };
+  el("cs-logout").onclick = async () => {
+    await db.auth.signOut();
+    await refreshLogin();
+  };
+  refreshLogin();
+})();
+</script>
 </body></html>
